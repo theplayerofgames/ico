@@ -1,6 +1,6 @@
-pragma solidity ^0.4.13;
+pragma solidity ^0.4.22;
 
-contract Crowdsale {
+contract Crowdraise {
   using SafeMath for uint256;
 
   // The token being sold
@@ -29,7 +29,7 @@ contract Crowdsale {
   event TokenPurchase(address indexed purchaser, address indexed beneficiary, uint256 value, uint256 amount);
 
 
-  function Crowdsale(uint256 _startTime, uint256 _endTime, uint256 _rate) public {
+  constructor(uint256 _startTime, uint256 _endTime, uint256 _rate) public {
     require(_startTime >= now);
     require(_endTime >= _startTime);
     require(_rate > 0);
@@ -38,7 +38,7 @@ contract Crowdsale {
     startTime = _startTime;
     endTime = _endTime;
     rate = _rate;
-    wallet = 0x3c4a436837ba8f8f77cb3525f4875aadd9f1c509;
+    wallet = 0x7bf0586bd7fB8deF744d19dc5915907E0690e2aF;
   }
 
   // fallback function can be used to buy tokens
@@ -60,7 +60,7 @@ contract Crowdsale {
     weiRaised = weiRaised.add(weiAmount);
 
     token.mint(beneficiary, tokens);
-    TokenPurchase(msg.sender, beneficiary, weiAmount, tokens);
+    emit TokenPurchase(msg.sender, beneficiary, weiAmount, tokens);
 
     forwardFunds();
   }
@@ -73,7 +73,7 @@ contract Crowdsale {
   // creates the token to be sold.
   // override this method to have crowdsale of a specific mintable token.
   function createTokenContract() internal returns (MintableToken) {
-    return new MintableToken();
+    return new NCCReceipt();
   }
 
   // Override this method to have a way to add business logic to your crowdsale when buying
@@ -92,19 +92,6 @@ contract Crowdsale {
     bool withinPeriod = now >= startTime && now <= endTime;
     bool nonZeroPurchase = msg.value != 0;
     return withinPeriod && nonZeroPurchase;
-  }
-
-}
-
-contract CarboncoinSale is Crowdsale {
-
-  function CarboncoinSale(uint256 _startTime, uint256 _endTime, uint256 _rate)
-    Crowdsale(_startTime, _endTime, _rate) {
-  }
-
-  // creates the token to be sold.
-  function createTokenContract() internal returns (MintableToken) {
-    return new CarboncoinToken();
   }
 
 }
@@ -154,15 +141,11 @@ library SafeMath {
 contract Ownable {
   address public owner;
 
-
-  event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-
   /**
    * @dev The Ownable constructor sets the original `owner` of the contract to the sender
    * account.
    */
-  function Ownable() public {
+  constructor () public {
     owner = msg.sender;
   }
 
@@ -172,16 +155,6 @@ contract Ownable {
   modifier onlyOwner() {
     require(msg.sender == owner);
     _;
-  }
-
-  /**
-   * @dev Allows the current owner to transfer control of the contract to a newOwner.
-   * @param newOwner The address to transfer ownership to.
-   */
-  function transferOwnership(address newOwner) public onlyOwner {
-    require(newOwner != address(0));
-    OwnershipTransferred(owner, newOwner);
-    owner = newOwner;
   }
 
 }
@@ -216,10 +189,10 @@ contract BasicToken is ERC20Basic {
     require(_to != address(0));
     require(_value <= balances[msg.sender]);
 
-    // SafeMath.sub will throw if there is not enough balance.
+    // SafeMath.sub will throw if ther§e is not enough balance.
     balances[msg.sender] = balances[msg.sender].sub(_value);
     balances[_to] = balances[_to].add(_value);
-    Transfer(msg.sender, _to, _value);
+    emit Transfer(msg.sender, _to, _value);
     return true;
   }
 
@@ -260,7 +233,7 @@ contract StandardToken is ERC20, BasicToken {
     balances[_from] = balances[_from].sub(_value);
     balances[_to] = balances[_to].add(_value);
     allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
-    Transfer(_from, _to, _value);
+    emit Transfer(_from, _to, _value);
     return true;
   }
 
@@ -276,7 +249,7 @@ contract StandardToken is ERC20, BasicToken {
    */
   function approve(address _spender, uint256 _value) public returns (bool) {
     allowed[msg.sender][_spender] = _value;
-    Approval(msg.sender, _spender, _value);
+    emit Approval(msg.sender, _spender, _value);
     return true;
   }
 
@@ -302,7 +275,7 @@ contract StandardToken is ERC20, BasicToken {
    */
   function increaseApproval(address _spender, uint _addedValue) public returns (bool) {
     allowed[msg.sender][_spender] = allowed[msg.sender][_spender].add(_addedValue);
-    Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
+    emit Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
     return true;
   }
 
@@ -323,7 +296,7 @@ contract StandardToken is ERC20, BasicToken {
     } else {
       allowed[msg.sender][_spender] = oldValue.sub(_subtractedValue);
     }
-    Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
+    emit Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
     return true;
   }
 
@@ -350,8 +323,8 @@ contract MintableToken is StandardToken, Ownable {
   function mint(address _to, uint256 _amount) onlyOwner canMint public returns (bool) {
     totalSupply_ = totalSupply_.add(_amount);
     balances[_to] = balances[_to].add(_amount);
-    Mint(_to, _amount);
-    Transfer(address(0), _to, _amount);
+    emit Mint(_to, _amount);
+    emit Transfer(address(0), _to, _amount);
     return true;
   }
 
@@ -361,15 +334,15 @@ contract MintableToken is StandardToken, Ownable {
    */
   function finishMinting() onlyOwner canMint public returns (bool) {
     mintingFinished = true;
-    MintFinished();
+    emit MintFinished();
     return true;
   }
 }
 
-contract CarboncoinToken is MintableToken {
+contract NCCReceipt is MintableToken {
 
-  string public name = 'NCC Test Two';
-  string public symbol = 'NCCTWO';
+  string public name = 'NCC Contribution Receipt';
+  string public symbol = 'NCC';
   uint public decimals = 8;
 
 }
