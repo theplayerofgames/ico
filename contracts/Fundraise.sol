@@ -22,7 +22,7 @@ contract Fundraise {
   /**
    * event for transference process logging
    * @param patron who provided support commitment for unitized invoices (UPC)
-   * @param patron who got the unitized invoices (UPC)
+   * @param recipient who got the unitized invoices (UPC)
    * @param value weis contributed for unitized invoice (UPC) transfer
    * @param amount of unitized invoices (UPC) transferred
    */
@@ -46,7 +46,7 @@ contract Fundraise {
     makeContribution(msg.sender);
   }
 
-  // low level token purchase function
+  // low level upc function
   function makeContribution(address recipient) public payable {
     require(recipient != address(0));
     require(validTransfer());
