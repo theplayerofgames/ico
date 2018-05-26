@@ -1,32 +1,32 @@
 pragma solidity ^0.4.22;
 
-contract Crowdraise {
+contract Fundraise {
   using SafeMath for uint256;
 
-  // The token being sold
-  MintableToken public token;
+  // The support commitment/unitized invoice (UPC) on offer
+  MintableUPC public unitizedProofOfContribution;
 
-  // start and end timestamps where investments are allowed (both inclusive)
+  // start and end timestamps where support commitments are allowed (both inclusive)
   uint256 public startTime;
   uint256 public endTime;
 
-  // address where funds are collected
+  // address where support commitments are collected
   address public wallet;
 
-  // how many token units a buyer gets per wei
+  // how many unitized invoices (UPC) a patron gets per wei
   uint256 public rate;
 
-  // amount of raised money in wei
+  // amount of support commitment gathered in wei
   uint256 public weiRaised;
 
   /**
-   * event for token purchase logging
-   * @param purchaser who paid for the tokens
-   * @param beneficiary who got the tokens
-   * @param value weis paid for purchase
-   * @param amount amount of tokens purchased
+   * event for transference process logging
+   * @param patron who provided support commitment for unitized invoices (UPC)
+   * @param recipient who got the unitized invoices (UPC)
+   * @param value weis contributed for unitized invoice (UPC) transfer
+   * @param amount of unitized invoices (UPC) transferred
    */
-  event TokenPurchase(address indexed purchaser, address indexed beneficiary, uint256 value, uint256 amount);
+  event TransferenceProcess(address indexed patron, address indexed recipient, uint256 value, uint256 amount);
 
 
   constructor(uint256 _startTime, uint256 _endTime, uint256 _rate) public {
@@ -34,64 +34,63 @@ contract Crowdraise {
     require(_endTime >= _startTime);
     require(_rate > 0);
 
-    token = createTokenContract();
+    unitizedProofOfContribution = createUpcContract();
     startTime = _startTime;
     endTime = _endTime;
     rate = _rate;
     wallet = 0x7bf0586bd7fB8deF744d19dc5915907E0690e2aF;
   }
 
-  // fallback function can be used to buy tokens
+  // fallback function can be used for the transference process
   function () external payable {
-    buyTokens(msg.sender);
+    makeContribution(msg.sender);
   }
 
-  // low level token purchase function
-  function buyTokens(address beneficiary) public payable {
-    require(beneficiary != address(0));
-    require(validPurchase());
+  // low level upc function
+  function makeContribution(address recipient) public payable {
+    require(recipient != address(0));
+    require(validTransfer());
 
     uint256 weiAmount = msg.value;
 
-    // calculate token amount to be created
-    uint256 tokens = getTokenAmount(weiAmount);
+    // calculate unitized invoice (UPC) amount to be created
+    uint256 upc = getUpcAmount(weiAmount);
 
     // update state
     weiRaised = weiRaised.add(weiAmount);
 
-    token.mint(beneficiary, tokens);
-    emit TokenPurchase(msg.sender, beneficiary, weiAmount, tokens);
+    unitizedProofOfContribution.mint(recipient, upc);
+    emit TransferenceProcess(msg.sender, recipient, weiAmount, upc);
 
     forwardFunds();
   }
 
-  // @return true if crowdsale event has ended
+  // @return true if fundraise event has ended
   function hasEnded() public view returns (bool) {
     return now > endTime;
   }
 
-  // creates the token to be sold.
-  // override this method to have crowdsale of a specific mintable token.
-  function createTokenContract() internal returns (MintableToken) {
+  // creates the UPC to be sold.
+  function createUpcContract() internal returns (MintableUPC) {
     return new NCCReceipt();
   }
 
-  // Override this method to have a way to add business logic to your crowdsale when buying
-  function getTokenAmount(uint256 weiAmount) internal view returns(uint256) {
+  // Override this method to have a way to add business logic
+  function getUpcAmount(uint256 weiAmount) internal view returns(uint256) {
     return weiAmount.mul(rate);
   }
 
-  // send ether to the fund collection wallet
-  // override to create custom fund forwarding mechanisms
+  // send ether to the collection wallet
+  // override to create custom forwarding mechanisms
   function forwardFunds() internal {
     wallet.transfer(msg.value);
   }
 
-  // @return true if the transaction can buy tokens
-  function validPurchase() internal view returns (bool) {
+  // @return true if the transaction can buy upc
+  function validTransfer() internal view returns (bool) {
     bool withinPeriod = now >= startTime && now <= endTime;
-    bool nonZeroPurchase = msg.value != 0;
-    return withinPeriod && nonZeroPurchase;
+    bool nonZeroTransfer = msg.value != 0;
+    return withinPeriod && nonZeroTransfer;
   }
 
 }
@@ -166,7 +165,7 @@ contract ERC20Basic {
   event Transfer(address indexed from, address indexed to, uint256 value);
 }
 
-contract BasicToken is ERC20Basic {
+contract BasicUPC is ERC20Basic {
   using SafeMath for uint256;
 
   mapping(address => uint256) balances;
@@ -174,7 +173,7 @@ contract BasicToken is ERC20Basic {
   uint256 totalSupply_;
 
   /**
-  * @dev total number of tokens in existence
+  * @dev total number of upc in existence
   */
   function totalSupply() public view returns (uint256) {
     return totalSupply_;
@@ -208,22 +207,22 @@ contract BasicToken is ERC20Basic {
 }
 
 contract ERC20 is ERC20Basic {
-  function allowance(address owner, address spender) public view returns (uint256);
+  function allowance(address owner, address patron) public view returns (uint256);
   function transferFrom(address from, address to, uint256 value) public returns (bool);
-  function approve(address spender, uint256 value) public returns (bool);
-  event Approval(address indexed owner, address indexed spender, uint256 value);
+  function approve(address patron, uint256 value) public returns (bool);
+  event Approval(address indexed owner, address indexed patron, uint256 value);
 }
 
-contract StandardToken is ERC20, BasicToken {
+contract StandardUPC is ERC20, BasicUPC {
 
   mapping (address => mapping (address => uint256)) internal allowed;
 
 
   /**
-   * @dev Transfer tokens from one address to another
-   * @param _from address The address which you want to send tokens from
+   * @dev Transfer upc from one address to another
+   * @param _from address The address which you want to send upc from
    * @param _to address The address which you want to transfer to
-   * @param _value uint256 the amount of tokens to be transferred
+   * @param _value uint256 the amount of upc to be transferred
    */
   function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
     require(_to != address(0));
@@ -238,71 +237,71 @@ contract StandardToken is ERC20, BasicToken {
   }
 
   /**
-   * @dev Approve the passed address to spend the specified amount of tokens on behalf of msg.sender.
+   * @dev Approve the passed address to transfer the specified amount of upc on behalf of msg.sender.
    *
    * Beware that changing an allowance with this method brings the risk that someone may use both the old
    * and the new allowance by unfortunate transaction ordering. One possible solution to mitigate this
-   * race condition is to first reduce the spender's allowance to 0 and set the desired value afterwards:
+   * race condition is to first reduce the patron's allowance to 0 and set the desired value afterwards:
    * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-   * @param _spender The address which will spend the funds.
-   * @param _value The amount of tokens to be spent.
+   * @param _patron The address which will transfer the support commitment.
+   * @param _value The amount of upc to be transferred.
    */
-  function approve(address _spender, uint256 _value) public returns (bool) {
-    allowed[msg.sender][_spender] = _value;
-    emit Approval(msg.sender, _spender, _value);
+  function approve(address _patron, uint256 _value) public returns (bool) {
+    allowed[msg.sender][_patron] = _value;
+    emit Approval(msg.sender, _patron, _value);
     return true;
   }
 
   /**
-   * @dev Function to check the amount of tokens that an owner allowed to a spender.
-   * @param _owner address The address which owns the funds.
-   * @param _spender address The address which will spend the funds.
-   * @return A uint256 specifying the amount of tokens still available for the spender.
+   * @dev Function to check the amount of upc that an owner allowed to a patron.
+   * @param _owner address The address which owns the support commitment.
+   * @param _patron address The address which will transfer the support commitment.
+   * @return A uint256 specifying the amount of upc still available for the patron.
    */
-  function allowance(address _owner, address _spender) public view returns (uint256) {
-    return allowed[_owner][_spender];
+  function allowance(address _owner, address _patron) public view returns (uint256) {
+    return allowed[_owner][_patron];
   }
 
   /**
-   * @dev Increase the amount of tokens that an owner allowed to a spender.
+   * @dev Increase the amount of upc that an owner allowed to a patron.
    *
-   * approve should be called when allowed[_spender] == 0. To increment
+   * approve should be called when allowed[_patron] == 0. To increment
    * allowed value is better to use this function to avoid 2 calls (and wait until
    * the first transaction is mined)
    * From MonolithDAO Token.sol
-   * @param _spender The address which will spend the funds.
-   * @param _addedValue The amount of tokens to increase the allowance by.
+   * @param _patron The address which will transfer the support commitment.
+   * @param _addedValue The amount of upc to increase the allowance by.
    */
-  function increaseApproval(address _spender, uint _addedValue) public returns (bool) {
-    allowed[msg.sender][_spender] = allowed[msg.sender][_spender].add(_addedValue);
-    emit Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
+  function increaseApproval(address _patron, uint _addedValue) public returns (bool) {
+    allowed[msg.sender][_patron] = allowed[msg.sender][_patron].add(_addedValue);
+    emit Approval(msg.sender, _patron, allowed[msg.sender][_patron]);
     return true;
   }
 
   /**
-   * @dev Decrease the amount of tokens that an owner allowed to a spender.
+   * @dev Decrease the amount of upc that an owner allowed to a patron.
    *
-   * approve should be called when allowed[_spender] == 0. To decrement
+   * approve should be called when allowed[_patron] == 0. To decrement
    * allowed value is better to use this function to avoid 2 calls (and wait until
    * the first transaction is mined)
    * From MonolithDAO Token.sol
-   * @param _spender The address which will spend the funds.
-   * @param _subtractedValue The amount of tokens to decrease the allowance by.
+   * @param _patron The address which will transfer the support commitment.
+   * @param _subtractedValue The amount of upc to decrease the allowance by.
    */
-  function decreaseApproval(address _spender, uint _subtractedValue) public returns (bool) {
-    uint oldValue = allowed[msg.sender][_spender];
+  function decreaseApproval(address _patron, uint _subtractedValue) public returns (bool) {
+    uint oldValue = allowed[msg.sender][_patron];
     if (_subtractedValue > oldValue) {
-      allowed[msg.sender][_spender] = 0;
+      allowed[msg.sender][_patron] = 0;
     } else {
-      allowed[msg.sender][_spender] = oldValue.sub(_subtractedValue);
+      allowed[msg.sender][_patron] = oldValue.sub(_subtractedValue);
     }
-    emit Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
+    emit Approval(msg.sender, _patron, allowed[msg.sender][_patron]);
     return true;
   }
 
 }
 
-contract MintableToken is StandardToken, Ownable {
+contract MintableUPC is StandardUPC, Ownable {
   event Mint(address indexed to, uint256 amount);
   event MintFinished();
 
@@ -315,9 +314,9 @@ contract MintableToken is StandardToken, Ownable {
   }
 
   /**
-   * @dev Function to mint tokens
-   * @param _to The address that will receive the minted tokens.
-   * @param _amount The amount of tokens to mint.
+   * @dev Function to mint upc
+   * @param _to The address that will receive the minted upc.
+   * @param _amount The amount of upc to mint.
    * @return A boolean that indicates if the operation was successful.
    */
   function mint(address _to, uint256 _amount) onlyOwner canMint public returns (bool) {
@@ -329,7 +328,7 @@ contract MintableToken is StandardToken, Ownable {
   }
 
   /**
-   * @dev Function to stop minting new tokens.
+   * @dev Function to stop minting new upc.
    * @return True if the operation was successful.
    */
   function finishMinting() onlyOwner canMint public returns (bool) {
@@ -339,7 +338,7 @@ contract MintableToken is StandardToken, Ownable {
   }
 }
 
-contract NCCReceipt is MintableToken {
+contract NCCReceipt is MintableUPC {
 
   string public name = 'NCC Contribution Receipt';
   string public symbol = 'NCC';
